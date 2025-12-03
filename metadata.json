@@ -1,0 +1,5 @@
+{
+  "name": "Azure Secret Automator",
+  "description": "A guide to automating Azure App Registration client secret rotation using Azure Automation.",
+  "requestFramePermissions": []
+}

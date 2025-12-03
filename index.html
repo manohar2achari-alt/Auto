@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automating Azure App Secret Rotation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --azure-blue: #0078D4;
+            --azure-dark: #005A9E;
+            --bg-gray: #F0F2F5;
+            --card-border: #E1DFDD;
+            --text-primary: #323130;
+            --text-secondary: #605E5C;
+            --white: #FFFFFF;
+            --code-bg: #1E1E1E;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-primary);
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        /* Header */
+        header {
+            background-color: var(--white);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            height: 64px;
+        }
+
+        .logo {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--azure-blue);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 24px;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--azure-blue);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--azure-blue), #004E8C);
+            color: var(--white);
+            padding: 80px 20px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            max-width: 700px;
+            margin: 0 auto 30px;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--white);
+            color: var(--azure-blue);
+            padding: 12px 28px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        /* Main Container */
+        main {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        section {
+            margin-bottom: 60px;
+            scroll-margin-top: 100px;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            color: var(--azure-blue);
+            margin-bottom: 24px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            margin: 24px 0 12px;
+            color: var(--text-primary);
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* Cards */
+        .card {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 6px;
+            box-shadow: 0 1.6px 3.6px 0 rgba(0,0,0,0.132), 0 0.3px 0.9px 0 rgba(0,0,0,0.108);
+            margin-bottom: 24px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+        
+        .card:hover {
+            border-color: #c7e0f4;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        /* Workflow Diagram */
+        .workflow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin: 30px 0;
+            background: #fcfcfc;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px dashed var(--card-border);
+        }
+
+        .wf-node {
+            background: var(--white);
+            border: 2px solid var(--azure-blue);
+            color: var(--azure-blue);
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .wf-arrow {
+            color: #999;
+        }
+
+        /* Step List */
+        .step-list {
+            list-style: none;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .step-num {
+            background: var(--azure-blue);
+            color: var(--white);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        /* Code Blocks */
+        .code-container {
+            background: var(--code-bg);
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .code-header {
+            background: #2D2D2D;
+            padding: 8px 16px;
+            color: #ccc;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: monospace;
+        }
+
+        pre {
+            padding: 16px;
+            overflow-x: auto;
+            color: #D4D4D4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+        }
+
+        code {
+            font-family: inherit;
+        }
+
+        .copy-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        
+        .copy-btn:hover {
+            background: #444;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--text-primary);
+            color: var(--white);
+            padding: 40px 20px;
+            text-align: center;
+            margin-top: auto;
+        }
+
+        .footer-content a {
+            color: #aeb9c4;
+            margin: 0 10px;
+            text-decoration: none;
+        }
+
+        .footer-content a:hover {
+            color: var(--white);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .nav-container { flex-direction: column; height: auto; padding: 15px; }
+            nav ul { margin-top: 15px; gap: 15px; flex-wrap: wrap; justify-content: center; }
+            .hero h1 { font-size: 1.8rem; }
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/"
+  }
+}
+</script>
+</head>
+<body>
+
+<header>
+    <div class="nav-container">
+        <a href="#" class="logo">
+            <i class="fab fa-microsoft"></i> Azure Secret Automator
+        </a>
+        <nav>
+            <ul>
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#steps">Steps</a></li>
+                <li><a href="#scripts">Scripts</a></li>
+            </ul>
+        </nav>
+    </div>
+</header>
+
+<div class="hero">
+    <h1>Azure Client Secret Lifecycle</h1>
+    <p>Automate notifications and renewal for Azure App Registration secrets using Azure Automation and Managed Identity.</p>
+    <a href="#steps" class="btn">View Guide</a>
+</div>
+
+<main>
+
+    <!-- Overview -->
+    <section id="overview">
+        <h2>Overview</h2>
+        <div class="card">
+            <h3>Preventing Expiration Outages</h3>
+            <p>Azure App Registration secrets have a hard expiration date. When they expire, applications immediately fail with <code>401 Unauthorized</code> errors. This guide details how to automate notifications and renewal to ensure uptime.</p>
+        </div>
+        
+        <div class="grid-2">
+            <div class="card">
+                <h3>The Strategy</h3>
+                <p>Instead of manual tracking, we implement a tiered notification system. Emails are sent to the <strong>IAM Distribution List (DL)</strong> at key intervals: <strong>60, 30, and 7 days</strong> before expiration.</p>
+            </div>
+            <div class="card">
+                <h3>Automation Engine</h3>
+                <p>We use an Azure Automation Account with a System Assigned Managed Identity. This provides a secure, serverless environment to run daily compliance checks against your tenant.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works">
+        <h2>How It Works</h2>
+        <div class="card">
+            <p>The solution involves a PowerShell runbook that executes daily. It audits all App Registrations and triggers actions based on the "Days Remaining" until expiration.</p>
+            
+            <div class="workflow">
+                <div class="wf-node">Daily Audit</div>
+                <i class="fas fa-arrow-right wf-arrow"></i>
+                <div class="wf-node">Check Expiry</div>
+                <i class="fas fa-arrow-right wf-arrow"></i>
+                <div class="wf-node">Alert (60/30/7 Days)</div>
+                <i class="fas fa-arrow-right wf-arrow"></i>
+                <div class="wf-node">Auto-Renew (< 2 Days)</div>
+            </div>
+
+            <ul>
+                <li><strong>60 Days:</strong> Early warning email sent to IAM DL.</li>
+                <li><strong>30 Days:</strong> Second reminder to IAM DL.</li>
+                <li><strong>7 Days:</strong> Critical alert to IAM DL.</li>
+                <li><strong>< 2 Days:</strong> (Optional) Emergency auto-renewal to prevent outage.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- Steps -->
+    <section id="steps">
+        <h2>Step-by-Step Guide</h2>
+        
+        <div class="step-list">
+            <div class="step-item">
+                <div class="step-num">1</div>
+                <div>
+                    <h3>Create Azure Automation Account</h3>
+                    <p>Go to the Azure Portal and create a new Automation Account. Enable <strong>System Assigned Managed Identity</strong>.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-num">2</div>
+                <div>
+                    <h3>Assign Permissions</h3>
+                    <p>The Managed Identity requires Graph API permissions. Run the following to grant <code>Application.ReadWrite.All</code> (for secrets) and <code>Mail.Send</code> (for alerts).</p>
+                    <div class="code-container">
+                        <div class="code-header">PowerShell <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                        <pre><code>$TenantID = "your-tenant-id"
+$PrincipalID = "your-managed-identity-object-id"
+
+# Assign Application.ReadWrite.All
+New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $PrincipalID `
+-PrincipalId $PrincipalID `
+-ResourceId (Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'").Id `
+-AppRoleId "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9" 
+
+# Assign Mail.Send (if using Graph for emails)
+# AppRoleId for Mail.Send is "b633e1c5-bce6-49a3-97ac-883a5cef74f9"</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-num">3</div>
+                <div>
+                    <h3>Configure Notification Logic</h3>
+                    <p>The runbook logic is designed to reduce noise. It only triggers emails on specific days: <strong>60, 30, and 7</strong> days prior to expiration.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-num">4</div>
+                <div>
+                    <h3>Auto-Renew Failsafe</h3>
+                    <p>If action hasn't been taken by the time expiration is imminent (e.g., 2 days remaining), the script can auto-generate a new secret to keep the app running, though manual update of the consumer service is still required.</p>
+                </div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-num">5</div>
+                <div>
+                    <h3>Email Delivery</h3>
+                    <p>Emails are sent using a shared mailbox via Microsoft Graph or an internal SMTP relay to the IAM Distribution List (e.g., <code>iam-dl@company.com</code>).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Scripts -->
+    <section id="scripts">
+        <h2>Scripts</h2>
+        
+        <div class="card">
+            <h3>PowerShell Runbook: Monitor & Alert</h3>
+            <p>This script checks for expiring secrets and sends email notifications to the IAM DL at 60, 30, and 7 day marks.</p>
+            
+            <div class="code-container">
+                <div class="code-header">Runbook.ps1 <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>try {
+    # Connect using Managed Identity
+    Connect-MgGraph -Identity
+    
+    # Configuration
+    $AlertDays = @(60, 30, 7)    # Trigger alerts on these days
+    $AutoRenewThreshold = 2      # Auto-renew if less than this many days
+    $IamDlEmail = "iam-dl@example.com"
+    $SenderEmail = "automation-noreply@example.com"
+    
+    $Apps = Get-MgApplication -All
+    
+    foreach ($App in $Apps) {
+        foreach ($Cred in $App.PasswordCredentials) {
+            $ExpiryDate = [DateTime]$Cred.EndDateTime
+            $DaysLeft = ($ExpiryDate - (Get-Date)).Days
+            
+            # --- Alerting Logic (60, 30, 7 Days) ---
+            if ($DaysLeft -in $AlertDays) {
+                Write-Output "Sending $DaysLeft-day alert for '$($App.DisplayName)' to IAM DL."
+                
+                $EmailBody = "The client secret for $($App.DisplayName) (App ID: $($App.AppId)) expires in $DaysLeft days on $ExpiryDate. Please rotate credentials."
+                
+                $Params = @{
+                    Message = @{
+                        Subject = "ACTION REQUIRED: Secret for $($App.DisplayName) expires in $DaysLeft days"
+                        Body = @{ ContentType = "Text"; Content = $EmailBody }
+                        ToRecipients = @( @{ EmailAddress = @{ Address = $IamDlEmail } } )
+                    }
+                }
+                # Send-MgUserMail -UserId $SenderEmail -BodyParameter $Params
+            }
+
+            # --- Auto-Renewal Failsafe (< 2 Days) ---
+            if ($DaysLeft -ge 0 -and $DaysLeft -le $AutoRenewThreshold) {
+                Write-Output "CRITICAL: Secret for '$($App.DisplayName)' expires in $DaysLeft days. Auto-renewing..."
+                
+                $Params = @{ PasswordCredential = @{ DisplayName = "AutoRotate_$(Get-Date -Format 'yyyyMMdd')" } }
+                $NewCred = New-MgApplicationPassword -ApplicationId $App.Id -BodyParameter $Params
+                
+                Write-Output "SUCCESS: New secret created. KeyId: $($NewCred.KeyId)"
+                # Add logic here to securely vault the new secret if possible
+            }
+        }
+    }
+}
+catch {
+    Write-Error "An error occurred: $_"
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>Kusto Query (Monitoring)</h3>
+            <p>Track your automation jobs in Azure Monitor.</p>
+            <div class="code-container">
+                <div class="code-header">Query.kql <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+                <pre><code>AzureDiagnostics 
+| where ResourceProvider == "MICROSOFT.AUTOMATION" 
+| where Category == "JobStreams" 
+| where ResultDescription has "Sending" or ResultDescription has "CRITICAL"
+| project TimeGenerated, RunbookName_s, ResultDescription
+| order by TimeGenerated desc</code></pre>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    <div class="footer-content">
+        <p>Azure Secret Automation Guide</p>
+        <p style="margin-top: 10px; font-size: 0.9rem; opacity: 0.7;">
+            <a href="mailto:iam-dl@example.com">iam-dl@example.com</a>
+        </p>
+        <p style="margin-top: 20px; font-size: 0.8rem; opacity: 0.5;">&copy; 2025 Automation Docs. All rights reserved.</p>
+    </div>
+</footer>
+
+<script>
+    function copyCode(btn) {
+        const pre = btn.parentElement.nextElementSibling;
+        const code = pre.querySelector('code').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+            const originalText = btn.innerText;
+            btn.innerText = 'Copied!';
+            setTimeout(() => {
+                btn.innerText = originalText;
+            }, 2000);
+        });
+    }
+
+    // Smooth scroll support
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
