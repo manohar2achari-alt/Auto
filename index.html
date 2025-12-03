@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Automating Azure App Secret Rotation</title>
+    <title>Automating Azure App Secret Notifications</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -203,8 +203,14 @@
 
         .step-item {
             display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
+            gap: 20px;
+            margin-bottom: 40px;
+            border-left: 3px solid #e1dfdd;
+            padding-left: 20px;
+        }
+
+        .step-content {
+            width: 100%;
         }
 
         .step-num {
@@ -218,6 +224,21 @@
             justify-content: center;
             font-weight: bold;
             flex-shrink: 0;
+            margin-top: 4px;
+            /* Positioning logic adjustment for the timeline look */
+            position: relative;
+            left: -38px; 
+            margin-right: -32px;
+        }
+
+        .step-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            margin-top: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: block;
         }
 
         /* Code Blocks */
@@ -290,6 +311,8 @@
             .nav-container { flex-direction: column; height: auto; padding: 15px; }
             nav ul { margin-top: 15px; gap: 15px; flex-wrap: wrap; justify-content: center; }
             .hero h1 { font-size: 1.8rem; }
+            .step-item { padding-left: 0; border: none; flex-direction: column; gap: 10px;}
+            .step-num { left: 0; margin-right: 0; }
         }
     </style>
 <script type="importmap">
@@ -308,7 +331,7 @@
 <header>
     <div class="nav-container">
         <a href="#" class="logo">
-            <i class="fab fa-microsoft"></i> Azure Secret Automator
+            <i class="fab fa-microsoft"></i> Azure Secret Monitor
         </a>
         <nav>
             <ul>
@@ -322,8 +345,8 @@
 </header>
 
 <div class="hero">
-    <h1>Azure Client Secret Lifecycle</h1>
-    <p>Automate notifications and renewal for Azure App Registration secrets using Azure Automation and Managed Identity.</p>
+    <h1>Azure Client Secret Monitoring</h1>
+    <p>Automate notifications for Azure App Registration secrets using Azure Automation and Managed Identity.</p>
     <a href="#steps" class="btn">View Guide</a>
 </div>
 
@@ -334,7 +357,7 @@
         <h2>Overview</h2>
         <div class="card">
             <h3>Preventing Expiration Outages</h3>
-            <p>Azure App Registration secrets have a hard expiration date. When they expire, applications immediately fail with <code>401 Unauthorized</code> errors. This guide details how to automate notifications and renewal to ensure uptime.</p>
+            <p>Azure App Registration secrets have a hard expiration date. When they expire, applications immediately fail with <code>401 Unauthorized</code> errors. This guide details how to automate notifications to ensure teams act in time.</p>
         </div>
         
         <div class="grid-2">
@@ -353,7 +376,7 @@
     <section id="how-it-works">
         <h2>How It Works</h2>
         <div class="card">
-            <p>The solution involves a PowerShell runbook that executes daily. It audits all App Registrations and triggers actions based on the "Days Remaining" until expiration.</p>
+            <p>The solution involves a PowerShell runbook that executes daily. It audits all App Registrations and triggers alerts based on the "Days Remaining" until expiration.</p>
             
             <div class="workflow">
                 <div class="wf-node">Daily Audit</div>
@@ -361,15 +384,12 @@
                 <div class="wf-node">Check Expiry</div>
                 <i class="fas fa-arrow-right wf-arrow"></i>
                 <div class="wf-node">Alert (60/30/7 Days)</div>
-                <i class="fas fa-arrow-right wf-arrow"></i>
-                <div class="wf-node">Auto-Renew (< 2 Days)</div>
             </div>
 
             <ul>
                 <li><strong>60 Days:</strong> Early warning email sent to IAM DL.</li>
                 <li><strong>30 Days:</strong> Second reminder to IAM DL.</li>
                 <li><strong>7 Days:</strong> Critical alert to IAM DL.</li>
-                <li><strong>< 2 Days:</strong> (Optional) Emergency auto-renewal to prevent outage.</li>
             </ul>
         </div>
     </section>
@@ -379,59 +399,68 @@
         <h2>Step-by-Step Guide</h2>
         
         <div class="step-list">
+            
+            <!-- Step 1 -->
             <div class="step-item">
                 <div class="step-num">1</div>
-                <div>
+                <div class="step-content">
                     <h3>Create Azure Automation Account</h3>
-                    <p>Go to the Azure Portal and create a new Automation Account. Enable <strong>System Assigned Managed Identity</strong>.</p>
+                    <p>Go to the Azure Portal, search for "Automation Accounts", and create a new resource. Select your subscription and resource group. Ensure you enable <strong>System Assigned Managed Identity</strong> during creation or in the Identity blade afterwards.</p>
+                    <img src="https://placehold.co/800x400/f0f2f5/0078d4?text=Azure+Portal:+Create+Automation+Account" alt="Screenshot of creating an automation account" class="step-image">
                 </div>
             </div>
 
+            <!-- Step 2 -->
             <div class="step-item">
                 <div class="step-num">2</div>
-                <div>
-                    <h3>Assign Permissions</h3>
-                    <p>The Managed Identity requires Graph API permissions. Run the following to grant <code>Application.ReadWrite.All</code> (for secrets) and <code>Mail.Send</code> (for alerts).</p>
+                <div class="step-content">
+                    <h3>Verify Managed Identity</h3>
+                    <p>Navigate to your new Automation Account. On the left menu, under "Account Settings", click <strong>Identity</strong>. Ensure the Status is set to <strong>On</strong>. Copy the "Object (principal) ID" as you will need it for the next step.</p>
+                    <img src="https://placehold.co/800x400/f0f2f5/0078d4?text=Automation+Account:+Identity+Settings+Blade" alt="Screenshot of Identity Blade" class="step-image">
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step-item">
+                <div class="step-num">3</div>
+                <div class="step-content">
+                    <h3>Assign Graph API Permissions</h3>
+                    <p>The Managed Identity requires permission to read application data. Since Graph permissions cannot be assigned via the Portal UI for Managed Identities, use the PowerShell script below. This grants <code>Application.Read.All</code>.</p>
                     <div class="code-container">
                         <div class="code-header">PowerShell <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
                         <pre><code>$TenantID = "your-tenant-id"
 $PrincipalID = "your-managed-identity-object-id"
 
-# Assign Application.ReadWrite.All
+# Assign Application.Read.All (Read-only access to apps)
 New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $PrincipalID `
 -PrincipalId $PrincipalID `
 -ResourceId (Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'").Id `
--AppRoleId "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9" 
-
-# Assign Mail.Send (if using Graph for emails)
-# AppRoleId for Mail.Send is "b633e1c5-bce6-49a3-97ac-883a5cef74f9"</code></pre>
+-AppRoleId "9a5d68dd-52b0-4cc2-bd40-abcf44ac3a1c" </code></pre>
                     </div>
+                    <img src="https://placehold.co/800x200/2d2d2d/ffffff?text=PowerShell+Terminal:+Assigning+Graph+Permissions" alt="Screenshot of PowerShell Execution" class="step-image">
                 </div>
             </div>
 
-            <div class="step-item">
-                <div class="step-num">3</div>
-                <div>
-                    <h3>Configure Notification Logic</h3>
-                    <p>The runbook logic is designed to reduce noise. It only triggers emails on specific days: <strong>60, 30, and 7</strong> days prior to expiration.</p>
-                </div>
-            </div>
-
+            <!-- Step 4 -->
             <div class="step-item">
                 <div class="step-num">4</div>
-                <div>
-                    <h3>Auto-Renew Failsafe</h3>
-                    <p>If action hasn't been taken by the time expiration is imminent (e.g., 2 days remaining), the script can auto-generate a new secret to keep the app running, though manual update of the consumer service is still required.</p>
+                <div class="step-content">
+                    <h3>Create the Runbook</h3>
+                    <p>In the Automation Account, go to <strong>Runbooks</strong> and click "Create a runbook". Name it <code>Monitor-AppSecrets</code>, select <strong>PowerShell</strong> as the type, and use version <strong>5.1</strong>.</p>
+                    <img src="https://placehold.co/800x400/f0f2f5/0078d4?text=Automation+Account:+Create+PowerShell+Runbook" alt="Screenshot of Create Runbook Blade" class="step-image">
                 </div>
             </div>
 
+            <!-- Step 5 -->
             <div class="step-item">
                 <div class="step-num">5</div>
-                <div>
-                    <h3>Email Delivery</h3>
-                    <p>Emails are sent using a shared mailbox via Microsoft Graph or an internal SMTP relay to the IAM Distribution List (e.g., <code>iam-dl@company.com</code>).</p>
+                <div class="step-content">
+                    <h3>Add Schedule</h3>
+                    <p>After pasting and publishing the script (found in the Scripts section below), go to <strong>Schedules</strong> in the Runbook menu. Create a schedule to run daily (e.g., at 6:00 AM) to ensure consistent monitoring.</p>
+                    <img src="https://placehold.co/800x400/f0f2f5/0078d4?text=Runbook:+Link+to+Daily+Schedule" alt="Screenshot of Schedule Blade" class="step-image">
                 </div>
             </div>
+
         </div>
     </section>
 
@@ -441,7 +470,7 @@ New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $PrincipalID `
         
         <div class="card">
             <h3>PowerShell Runbook: Monitor & Alert</h3>
-            <p>This script checks for expiring secrets and sends email notifications to the IAM DL at 60, 30, and 7 day marks.</p>
+            <p>This script checks for expiring secrets and sends email notifications to the IAM DL at 60, 30, and 7 day marks. It does NOT auto-renew secrets.</p>
             
             <div class="code-container">
                 <div class="code-header">Runbook.ps1 <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
@@ -450,8 +479,7 @@ New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $PrincipalID `
     Connect-MgGraph -Identity
     
     # Configuration
-    $AlertDays = @(60, 30, 7)    # Trigger alerts on these days
-    $AutoRenewThreshold = 2      # Auto-renew if less than this many days
+    $AlertDays = @(60, 30, 7)    # Trigger alerts on these exact days
     $IamDlEmail = "iam-dl@example.com"
     $SenderEmail = "automation-noreply@example.com"
     
@@ -466,7 +494,7 @@ New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $PrincipalID `
             if ($DaysLeft -in $AlertDays) {
                 Write-Output "Sending $DaysLeft-day alert for '$($App.DisplayName)' to IAM DL."
                 
-                $EmailBody = "The client secret for $($App.DisplayName) (App ID: $($App.AppId)) expires in $DaysLeft days on $ExpiryDate. Please rotate credentials."
+                $EmailBody = "The client secret for '$($App.DisplayName)' (App ID: $($App.AppId)) expires in $DaysLeft days on $ExpiryDate. Please rotate credentials immediately."
                 
                 $Params = @{
                     Message = @{
@@ -475,18 +503,10 @@ New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $PrincipalID `
                         ToRecipients = @( @{ EmailAddress = @{ Address = $IamDlEmail } } )
                     }
                 }
+                # Uncomment to enable sending via Graph API:
                 # Send-MgUserMail -UserId $SenderEmail -BodyParameter $Params
-            }
-
-            # --- Auto-Renewal Failsafe (< 2 Days) ---
-            if ($DaysLeft -ge 0 -and $DaysLeft -le $AutoRenewThreshold) {
-                Write-Output "CRITICAL: Secret for '$($App.DisplayName)' expires in $DaysLeft days. Auto-renewing..."
                 
-                $Params = @{ PasswordCredential = @{ DisplayName = "AutoRotate_$(Get-Date -Format 'yyyyMMdd')" } }
-                $NewCred = New-MgApplicationPassword -ApplicationId $App.Id -BodyParameter $Params
-                
-                Write-Output "SUCCESS: New secret created. KeyId: $($NewCred.KeyId)"
-                # Add logic here to securely vault the new secret if possible
+                # If using SMTP/Relay, replace the above with Send-MailMessage logic
             }
         }
     }
@@ -499,13 +519,13 @@ catch {
 
         <div class="card">
             <h3>Kusto Query (Monitoring)</h3>
-            <p>Track your automation jobs in Azure Monitor.</p>
+            <p>Track your automation jobs in Azure Monitor to see when alerts are triggered.</p>
             <div class="code-container">
                 <div class="code-header">Query.kql <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
                 <pre><code>AzureDiagnostics 
 | where ResourceProvider == "MICROSOFT.AUTOMATION" 
 | where Category == "JobStreams" 
-| where ResultDescription has "Sending" or ResultDescription has "CRITICAL"
+| where ResultDescription has "Sending" 
 | project TimeGenerated, RunbookName_s, ResultDescription
 | order by TimeGenerated desc</code></pre>
             </div>
@@ -516,7 +536,7 @@ catch {
 
 <footer>
     <div class="footer-content">
-        <p>Azure Secret Automation Guide</p>
+        <p>Azure Secret Monitoring Guide</p>
         <p style="margin-top: 10px; font-size: 0.9rem; opacity: 0.7;">
             <a href="mailto:iam-dl@example.com">iam-dl@example.com</a>
         </p>
